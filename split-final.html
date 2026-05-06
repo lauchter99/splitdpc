@@ -1,0 +1,1619 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Split — Group Expense Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;1,400&family=Bricolage+Grotesque:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0c0c0e;
+    --surface: #141417;
+    --surface2: #1c1c20;
+    --surface3: #242428;
+    --border: #2a2a30;
+    --accent: #a8a8b8;
+    --accent-dim: #6e6e82;
+    --accent-bg: rgba(168, 168, 184, 0.07);
+    --text: #e8e8ec;
+    --text-mid: #8c8c9e;
+    --text-dim: #4e4e5e;
+    --red: #c47a7a;
+    --red-bg: rgba(196, 122, 122, 0.09);
+    --green: #7aab8f;
+    --green-bg: rgba(122, 171, 143, 0.09);
+    --blue: #7a9ab8;
+    --blue-bg: rgba(122, 154, 184, 0.09);
+    --radius: 12px;
+    --radius-sm: 7px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Bricolage Grotesque', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  header {
+    padding: 16px 32px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--surface);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .logo-wrap { display: flex; align-items: center; gap: 16px; }
+  .logo { font-size: 20px; font-weight: 700; letter-spacing: -0.3px; color: var(--text); }
+  .logo span { color: var(--text-dim); }
+  header .subtitle { font-family: 'Lora', serif; font-style: italic; font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+  .header-group-indicator { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: var(--text-mid); }
+  .header-group-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+
+  /* ── Top Nav Tabs ─────────────── */
+  .nav-bar { display: flex; gap: 2px; padding: 0 32px; background: var(--surface); border-bottom: 1px solid var(--border); }
+  .nav-tab { padding: 13px 20px; font-size: 13px; font-weight: 600; color: var(--text-dim); cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.15s; letter-spacing: 0.3px; white-space: nowrap; }
+  .nav-tab:hover { color: var(--text-mid); }
+  .nav-tab.active { color: var(--text); border-bottom-color: var(--accent); }
+
+  /* ── Groups View ─────────────── */
+  #view-groups { display: none; }
+  #view-groups.active { display: block; }
+  #view-main   { display: none; }
+  #view-main.active   { display: block; }
+
+  .groups-page { max-width: 900px; margin: 0 auto; padding: 32px; }
+  .groups-page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 28px; }
+  .groups-page-title { font-size: 26px; font-weight: 800; }
+  .groups-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
+
+  .group-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    cursor: pointer;
+    transition: all 0.15s;
+    position: relative;
+    overflow: hidden;
+  }
+  .group-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: var(--card-color, var(--accent));
+  }
+  .group-card:hover { border-color: var(--accent); background: var(--surface2); transform: translateY(-1px); }
+  .group-card-emoji { font-size: 28px; margin-bottom: 10px; }
+  .group-card-name { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
+  .group-card-meta { font-size: 12px; color: var(--text-mid); font-family: 'Lora', serif; font-style: italic; }
+  .group-card-stats { display: flex; gap: 16px; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border); }
+  .group-stat { text-align: left; }
+  .group-stat-val { font-size: 14px; font-weight: 700; font-family: 'Lora', serif; }
+  .group-stat-lbl { font-size: 10px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.4px; font-weight: 600; margin-top: 1px; }
+  .group-card-delete { position: absolute; top: 12px; right: 12px; background: transparent; border: none; color: var(--text-dim); font-size: 13px; cursor: pointer; padding: 4px 6px; border-radius: 4px; transition: all 0.1s; opacity: 0; }
+  .group-card:hover .group-card-delete { opacity: 1; }
+  .group-card-delete:hover { color: var(--red); background: var(--red-bg); }
+
+  .new-group-card {
+    background: transparent;
+    border: 1px dashed var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 160px;
+    color: var(--text-dim);
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .new-group-card:hover { border-color: var(--accent); color: var(--text-mid); background: var(--accent-bg); }
+  .new-group-card-icon { font-size: 28px; }
+
+  /* ── Modal ─────────────── */
+  .modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.7);
+    backdrop-filter: blur(4px);
+    z-index: 200;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    width: 100%;
+    max-width: 480px;
+    overflow: hidden;
+    animation: slideUp 0.2s ease;
+  }
+  @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+  .modal-header { padding: 18px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+  .modal-title { font-size: 15px; font-weight: 700; }
+  .modal-close { background: transparent; border: none; color: var(--text-dim); font-size: 18px; cursor: pointer; padding: 2px 6px; border-radius: 4px; }
+  .modal-close:hover { color: var(--text); background: var(--surface2); }
+  .modal-body { padding: 20px; display: flex; flex-direction: column; gap: 14px; }
+  .modal-footer { padding: 16px 20px; border-top: 1px solid var(--border); display: flex; gap: 8px; justify-content: flex-end; }
+
+  /* ── Main Expense View ─────────────── */
+  .main { max-width: 1100px; margin: 0 auto; padding: 32px; display: grid; grid-template-columns: 260px 1fr; gap: 28px; align-items: start; }
+  .main.full { grid-template-columns: 1fr; }
+
+  .panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  .panel-header { padding: 16px 20px; border-bottom: 1px solid var(--border); font-weight: 700; font-size: 13px; letter-spacing: 0.4px; text-transform: uppercase; color: var(--text-mid); display: flex; align-items: center; justify-content: space-between; }
+
+  .members-list { padding: 8px; }
+  .member-pill { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: var(--radius-sm); cursor: pointer; transition: background 0.12s; }
+  .member-pill:hover { background: var(--surface2); }
+  .member-pill.selected { background: var(--accent-bg); }
+  .avatar { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 12px; flex-shrink: 0; color: #111; }
+  .member-name { font-weight: 600; font-size: 14px; flex: 1; }
+  .member-balance { font-family: 'Lora', serif; font-size: 11px; font-weight: 400; font-style: italic; }
+  .balance-pos { color: var(--green); }
+  .balance-neg { color: var(--red); }
+  .balance-zero { color: var(--text-dim); }
+
+  .add-member-row { padding: 8px; border-top: 1px solid var(--border); }
+  .input-row { display: flex; gap: 6px; }
+
+  input[type="text"], input[type="number"], select, textarea {
+    background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm);
+    color: var(--text); font-family: 'Bricolage Grotesque', sans-serif; font-size: 14px;
+    padding: 9px 12px; width: 100%; outline: none; transition: border-color 0.15s;
+  }
+  input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+  input::placeholder, textarea::placeholder { color: var(--text-dim); }
+  select option { background: var(--surface2); }
+
+  button { cursor: pointer; border: none; font-family: 'Bricolage Grotesque', sans-serif; font-weight: 600; border-radius: var(--radius-sm); transition: all 0.15s; }
+  .btn-primary { background: var(--surface3); color: var(--text); border: 1px solid var(--border); padding: 9px 16px; font-size: 13px; white-space: nowrap; }
+  .btn-primary:hover { background: var(--accent-bg); border-color: var(--accent); }
+  .btn-accent { background: var(--accent-bg); color: var(--text); border: 1px solid var(--accent); padding: 10px 20px; font-size: 13px; white-space: nowrap; }
+  .btn-accent:hover { background: rgba(168,168,184,0.15); }
+  .btn-ghost { background: transparent; border: 1px solid var(--border); color: var(--text-mid); padding: 7px 12px; font-size: 12px; }
+  .btn-ghost:hover { border-color: var(--accent); color: var(--text); }
+  .btn-danger { background: transparent; border: 1px solid transparent; color: var(--text-dim); padding: 4px 8px; font-size: 11px; }
+  .btn-danger:hover { color: var(--red); border-color: var(--red-bg); }
+
+  .form-grid { display: grid; gap: 14px; padding: 20px; }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .form-label { font-size: 11px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; color: var(--text-dim); margin-bottom: 6px; }
+  .field { display: flex; flex-direction: column; }
+
+  /* Payer mode toggle */
+  .payer-mode-row { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+  .payer-mode-btn {
+    background: var(--surface2); border: 1px solid var(--border); color: var(--text-mid);
+    padding: 5px 11px; font-size: 12px; font-weight: 600; border-radius: 20px;
+    cursor: pointer; font-family: 'Bricolage Grotesque', sans-serif; transition: all 0.15s;
+  }
+  .payer-mode-btn.active { background: var(--accent-bg); border-color: var(--accent); color: var(--text); }
+  .payer-mode-hint { font-size: 11px; color: var(--text-dim); font-family: 'Lora', serif; font-style: italic; margin-top: 5px; line-height: 1.5; }
+
+  .people-grid { display: flex; flex-wrap: wrap; gap: 6px; }
+  .person-check {
+    display: flex; align-items: center; gap: 7px; background: var(--surface2);
+    border: 1px solid var(--border); border-radius: 20px; padding: 6px 12px;
+    cursor: pointer; transition: all 0.12s; user-select: none; font-size: 13px; font-weight: 600;
+  }
+  .person-check input { display: none; }
+  .person-check.checked { background: rgba(168,168,184,0.13); border-color: var(--accent); color: var(--text); box-shadow: 0 0 0 2px rgba(168,168,184,0.18), 0 0 10px rgba(168,168,184,0.08); }
+  .person-check.locked-out { opacity: 0.38; cursor: not-allowed; pointer-events: none; }
+  .person-check.locked-in  { cursor: not-allowed; pointer-events: none; }
+  .person-check .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text-dim); transition: all 0.15s; }
+  .person-check.checked .dot { background: var(--accent); box-shadow: 0 0 5px rgba(168,168,184,0.5); }
+
+  /* Receipt upload */
+  .receipt-upload-zone {
+    border: 1px dashed var(--border);
+    border-radius: var(--radius-sm);
+    padding: 14px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.15s;
+    color: var(--text-dim);
+    font-size: 13px;
+    position: relative;
+  }
+  .receipt-upload-zone:hover { border-color: var(--accent); color: var(--text-mid); background: var(--accent-bg); }
+  .receipt-upload-zone input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+  .receipt-preview { position: relative; margin-top: 10px; display: none; }
+  .receipt-preview img { width: 100%; max-height: 200px; object-fit: contain; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--surface2); }
+  .receipt-preview-remove { position: absolute; top: 6px; right: 6px; background: rgba(0,0,0,0.7); border: 1px solid var(--border); color: var(--text); border-radius: 4px; padding: 3px 7px; font-size: 11px; font-weight: 600; cursor: pointer; }
+  .receipt-preview-remove:hover { background: var(--red-bg); border-color: var(--red); color: var(--red); }
+
+  .expense-item { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: flex-start; gap: 14px; transition: background 0.1s; }
+  .expense-item:last-child { border-bottom: none; }
+  .expense-item:hover { background: rgba(255,255,255,0.02); }
+  .expense-icon { width: 36px; height: 36px; border-radius: 8px; background: var(--surface3); display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
+  .expense-info { flex: 1; min-width: 0; }
+  .expense-title { font-weight: 700; font-size: 14px; margin-bottom: 4px; }
+  .expense-meta { font-size: 12px; color: var(--text-mid); font-family: 'Lora', serif; font-style: italic; }
+  .expense-splits { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+  .split-tag { font-size: 10px; font-family: 'Lora', serif; background: var(--surface2); border: 1px solid var(--border); border-radius: 4px; padding: 2px 7px; color: var(--text-mid); }
+  .expense-amount { font-family: 'Lora', serif; font-size: 16px; font-weight: 600; color: var(--text); white-space: nowrap; text-align: right; }
+  .expense-per { font-size: 10px; color: var(--text-dim); text-align: right; margin-top: 2px; }
+  .expense-actions { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+  .receipt-thumb { width: 28px; height: 28px; object-fit: cover; border-radius: 4px; border: 1px solid var(--border); cursor: pointer; transition: opacity 0.1s; }
+  .receipt-thumb:hover { opacity: 0.8; }
+  .receipt-icon-btn { background: transparent; border: 1px solid var(--border); color: var(--text-dim); padding: 3px 6px; font-size: 11px; border-radius: 4px; cursor: pointer; white-space: nowrap; }
+  .receipt-icon-btn:hover { border-color: var(--blue); color: var(--blue); }
+
+  .person-detail { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); }
+  .detail-header { padding: 24px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 16px; }
+  .detail-avatar { width: 52px; height: 52px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 20px; color: #111; }
+  .detail-name { font-size: 22px; font-weight: 800; }
+  .detail-net { font-family: 'Lora', serif; font-style: italic; font-size: 13px; margin-top: 3px; }
+
+  .debt-row { display: flex; flex-direction: column; padding: 0; border-bottom: 1px solid var(--border); }
+  .debt-row:last-child { border-bottom: none; }
+  .debt-row-main { display: flex; align-items: center; justify-content: space-between; padding: 14px 24px; gap: 12px; }
+  .debt-label { font-size: 14px; flex: 1; min-width: 0; }
+  .debt-label strong { font-weight: 700; }
+  .debt-amount { font-family: 'Lora', serif; font-size: 14px; font-weight: 500; white-space: nowrap; }
+  .debt-actions { display: flex; align-items: center; gap: 8px; }
+
+  .pay-panel { background: var(--surface2); border-top: 1px solid var(--border); padding: 14px 24px; display: none; flex-direction: column; gap: 10px; }
+  .pay-panel.open { display: flex; }
+  .pay-panel-label { font-size: 11px; font-weight: 700; letter-spacing: 0.4px; text-transform: uppercase; color: var(--text-dim); }
+  .pay-options { display: flex; gap: 8px; flex-wrap: wrap; }
+  .pay-option-btn { background: var(--surface3); border: 1px solid var(--border); color: var(--text-mid); padding: 6px 12px; font-size: 12px; font-weight: 600; border-radius: var(--radius-sm); cursor: pointer; font-family: 'Bricolage Grotesque', sans-serif; transition: all 0.15s; }
+  .pay-option-btn:hover, .pay-option-btn.active { border-color: var(--accent); color: var(--text); background: var(--accent-bg); }
+  .pay-amount-row { display: flex; gap: 8px; align-items: center; }
+  .pay-amount-row input { flex: 1; min-width: 0; }
+  .btn-confirm-pay { background: var(--green-bg); border: 1px solid var(--green); color: var(--green); padding: 9px 16px; font-size: 13px; font-weight: 700; border-radius: var(--radius-sm); cursor: pointer; font-family: 'Bricolage Grotesque', sans-serif; transition: all 0.15s; white-space: nowrap; }
+  .btn-confirm-pay:hover { background: rgba(122,171,143,0.2); }
+  .btn-pay-open { background: var(--surface3); border: 1px solid var(--border); color: var(--text-mid); padding: 5px 12px; font-size: 11px; font-weight: 700; border-radius: var(--radius-sm); cursor: pointer; font-family: 'Bricolage Grotesque', sans-serif; transition: all 0.15s; white-space: nowrap; }
+  .btn-pay-open:hover { border-color: var(--accent); color: var(--text); }
+  .btn-pay-open.open { border-color: var(--accent); color: var(--text); background: var(--accent-bg); }
+
+  .empty { padding: 48px 24px; text-align: center; color: var(--text-dim); }
+  .empty-icon { font-size: 36px; margin-bottom: 12px; }
+  .empty-text { font-size: 14px; line-height: 1.6; }
+
+  .settled-item { padding: 14px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 12px; opacity: 0.75; }
+  .settled-item:last-child { border-bottom: none; }
+  .settled-badge { font-size: 10px; font-family: 'Lora', serif; font-style: italic; background: var(--green-bg); border: 1px solid rgba(122,171,143,0.3); color: var(--green); border-radius: 4px; padding: 2px 7px; white-space: nowrap; }
+
+  .toast { position: fixed; bottom: 28px; right: 28px; background: var(--surface3); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 18px; font-size: 13px; font-weight: 600; color: var(--text); opacity: 0; transform: translateY(12px); transition: all 0.25s; z-index: 999; pointer-events: none; }
+  .toast.show { opacity: 1; transform: translateY(0); }
+  .toast.success { border-left: 3px solid var(--green); }
+  .toast.error { border-left: 3px solid var(--red); }
+
+  .loading { display: flex; align-items: center; justify-content: center; padding: 32px; color: var(--text-dim); font-size: 13px; gap: 8px; }
+  .spinner { width: 16px; height: 16px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Receipt lightbox */
+  .lightbox { position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 500; display: none; align-items: center; justify-content: center; }
+  .lightbox.open { display: flex; }
+  .lightbox img { max-width: 90vw; max-height: 90vh; object-fit: contain; border-radius: var(--radius); }
+  .lightbox-close { position: fixed; top: 20px; right: 24px; background: var(--surface3); border: 1px solid var(--border); color: var(--text); font-size: 18px; cursor: pointer; padding: 6px 12px; border-radius: var(--radius-sm); font-family: 'Bricolage Grotesque', sans-serif; font-weight: 700; }
+
+  /* Color picker for groups */
+  .color-swatches { display: flex; gap: 8px; flex-wrap: wrap; }
+  .color-swatch { width: 24px; height: 24px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; transition: all 0.1s; }
+  .color-swatch.selected { border-color: var(--text); transform: scale(1.2); }
+
+  /* Group breadcrumb back button */
+  .back-btn { display: flex; align-items: center; gap: 6px; background: transparent; border: 1px solid var(--border); color: var(--text-mid); padding: 7px 14px; font-size: 13px; border-radius: var(--radius-sm); cursor: pointer; font-family: 'Bricolage Grotesque', sans-serif; font-weight: 600; transition: all 0.15s; margin-bottom: 0; }
+  .back-btn:hover { border-color: var(--accent); color: var(--text); }
+
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+  .select-all-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .section-divider { font-size: 11px; font-weight: 600; letter-spacing: 0.4px; text-transform: uppercase; color: var(--text-dim); padding: 16px 20px 8px; }
+
+  @media (max-width: 700px) {
+    .main { grid-template-columns: 1fr; padding: 12px; gap: 12px; }
+    header { padding: 14px 16px; }
+    .nav-bar { padding: 0 16px; overflow-x: auto; }
+    .nav-tab { padding: 11px 14px; font-size: 12px; }
+    .form-row { grid-template-columns: 1fr; }
+    .detail-header { padding: 16px; flex-wrap: wrap; gap: 12px; }
+    .detail-name { font-size: 18px; }
+    .debt-row-main { padding: 12px 16px; flex-wrap: wrap; gap: 8px; }
+    .pay-panel { padding: 12px 16px; }
+    .pay-options { gap: 6px; }
+    .pay-amount-row { flex-wrap: wrap; }
+    .btn-confirm-pay { width: 100%; justify-content: center; }
+    .form-grid { padding: 14px; }
+    .panel-header { padding: 13px 16px; }
+    .expense-item { padding: 12px 14px; gap: 10px; }
+    .members-list { padding: 6px; }
+    .add-member-row { padding: 6px; }
+    .section-divider { padding: 12px 16px 6px; }
+    .toast { left: 16px; right: 16px; bottom: 16px; text-align: center; }
+    .groups-page { padding: 16px; }
+    .groups-grid { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 400px) {
+    .logo { font-size: 17px; }
+    .expense-amount { font-size: 14px; }
+    .debt-actions { flex-wrap: wrap; }
+  }
+
+  /* ── Identity Screen ──────────────────────────────── */
+  #view-identity {
+    position: fixed; inset: 0;
+    background: var(--bg);
+    z-index: 300;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    animation: fadeIn 0.25s ease;
+  }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  #view-identity.hidden { display: none; }
+
+  .identity-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    width: 100%;
+    max-width: 420px;
+    overflow: hidden;
+  }
+  .identity-card-top {
+    padding: 32px 28px 24px;
+    text-align: center;
+    border-bottom: 1px solid var(--border);
+    background: linear-gradient(180deg, rgba(168,168,184,0.04) 0%, transparent 100%);
+  }
+  .identity-logo { font-size: 28px; font-weight: 800; letter-spacing: -0.5px; margin-bottom: 6px; }
+  .identity-logo span { color: var(--text-dim); }
+  .identity-prompt { font-family: 'Lora', serif; font-style: italic; font-size: 14px; color: var(--text-mid); margin-top: 4px; }
+  .identity-subprompt { font-size: 12px; color: var(--text-dim); margin-top: 6px; line-height: 1.5; }
+
+  .identity-people-list { padding: 12px; display: flex; flex-direction: column; gap: 4px; max-height: 320px; overflow-y: auto; }
+  .identity-person-row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 14px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: background 0.12s;
+    border: 1px solid transparent;
+  }
+  .identity-person-row:hover { background: var(--surface2); border-color: var(--border); }
+  .identity-person-row.selected { background: var(--accent-bg); border-color: var(--accent); }
+  .identity-person-name { font-size: 15px; font-weight: 700; flex: 1; }
+  .identity-person-check { font-size: 16px; color: var(--accent); opacity: 0; transition: opacity 0.1s; }
+  .identity-person-row.selected .identity-person-check { opacity: 1; }
+
+  .identity-new-row { padding: 12px; border-top: 1px solid var(--border); display: flex; gap: 8px; }
+  .identity-footer { padding: 16px 12px; border-top: 1px solid var(--border); }
+  .identity-empty { padding: 24px; text-align: center; color: var(--text-dim); font-size: 13px; line-height: 1.6; }
+
+  /* ── Header user pill ─────────────────────────────── */
+  .header-user-pill {
+    display: flex; align-items: center; gap: 8px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 5px 12px 5px 7px;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-mid);
+  }
+  .header-user-pill:hover { border-color: var(--accent); color: var(--text); background: var(--accent-bg); }
+  .header-user-pill .pill-avatar { width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 9px; color: #111; flex-shrink: 0; }
+  .header-right { display: flex; align-items: center; gap: 10px; }
+
+  /* ── Switch User Modal ────────────────────────────── */
+  .switch-user-grid { display: flex; flex-direction: column; gap: 4px; }
+  .switch-user-row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 11px 14px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: background 0.12s;
+    border: 1px solid transparent;
+  }
+  .switch-user-row:hover { background: var(--surface2); border-color: var(--border); }
+  .switch-user-row.active-user { background: var(--accent-bg); border-color: var(--accent); }
+  .switch-user-name { font-size: 14px; font-weight: 700; flex: 1; }
+  .switch-user-tag { font-size: 10px; font-family: 'Lora', serif; font-style: italic; color: var(--accent); }
+  .switch-user-check { color: var(--accent); font-size: 14px; opacity: 0; }
+  .switch-user-row.active-user .switch-user-check { opacity: 1; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo-wrap">
+    <div>
+      <div class="logo">split<span>.</span></div>
+      <div class="subtitle">group expense tracker</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="header-group-indicator" id="header-group-indicator" style="display:none;">
+      <div class="header-group-dot" id="header-group-dot"></div>
+      <span id="header-group-name"></span>
+    </div>
+    <div class="header-user-pill" id="header-user-pill" onclick="openSwitchUserModal()" style="display:none;" title="Switch user">
+      <div class="pill-avatar" id="header-user-avatar"></div>
+      <span id="header-user-name"></span>
+    </div>
+  </div>
+</header>
+
+<!-- ══ IDENTITY SCREEN ══════════════════════════════════════════════════════ -->
+<div id="view-identity">
+  <div class="identity-card">
+    <div class="identity-card-top">
+      <div class="identity-logo">split<span>.</span></div>
+      <div class="identity-prompt">Who are you?</div>
+      <div class="identity-subprompt">Pick your name so expenses are tracked to you.<br>You can switch any time from the header.</div>
+    </div>
+    <div class="identity-people-list" id="identity-people-list">
+      <div class="identity-empty">No one in any group yet.<br>Enter your name below to get started.</div>
+    </div>
+    <div class="identity-new-row">
+      <input type="text" id="identity-new-name" placeholder="Or type a new name…" maxlength="24" onkeydown="if(event.key==='Enter')confirmIdentityNewName()">
+      <button class="btn-primary" onclick="confirmIdentityNewName()">Add</button>
+    </div>
+    <div class="identity-footer">
+      <button class="btn-accent" style="width:100%;padding:12px;" onclick="confirmIdentity()">Continue →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ SWITCH USER MODAL ════════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="modal-switch-user">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Switch User</div>
+      <button class="modal-close" onclick="closeModal('modal-switch-user')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="font-size:12px;color:var(--text-dim);font-family:'Lora',serif;font-style:italic;margin-bottom:4px;">Select who you are on this device:</div>
+      <div class="switch-user-grid" id="switch-user-grid"></div>
+      <div style="margin-top:4px;border-top:1px solid var(--border);padding-top:12px;">
+        <div class="form-label" style="margin-bottom:8px;">Add yourself if not listed</div>
+        <div class="input-row">
+          <input type="text" id="switch-user-new-name" placeholder="Your name…" maxlength="24" onkeydown="if(event.key==='Enter')switchUserAddNew()">
+          <button class="btn-primary" onclick="switchUserAddNew()">Add</button>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-ghost" onclick="closeModal('modal-switch-user')">Cancel</button>
+      <button class="btn-accent" onclick="confirmSwitchUser()">Switch →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ GROUPS VIEW ══════════════════════════════════════════════════════════ -->
+<div id="view-groups">
+  <div class="groups-page">
+    <div class="groups-page-header">
+      <div>
+        <div class="groups-page-title">Your Groups</div>
+        <div style="font-family:'Lora',serif;font-style:italic;font-size:13px;color:var(--text-dim);margin-top:4px;">Select a group to track expenses</div>
+      </div>
+    </div>
+    <div class="groups-grid" id="groups-grid">
+      <div class="loading"><div class="spinner"></div> Loading...</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MAIN EXPENSE VIEW ════════════════════════════════════════════════════ -->
+<div id="view-main">
+  <div class="nav-bar">
+    <div class="nav-tab active" onclick="switchTab('expenses')">Expenses</div>
+    <div class="nav-tab" onclick="switchTab('settled')">Settled</div>
+    <div style="flex:1;"></div>
+    <button class="back-btn" style="margin:6px 0;" onclick="goToGroups()">← All Groups</button>
+  </div>
+
+  <div id="tab-expenses" class="tab-content active">
+    <div class="main" id="main-layout">
+      <div>
+        <div class="panel">
+          <div class="panel-header">
+            <span>Members</span>
+            <span id="member-count" style="font-size:11px;font-family:'Lora',serif;font-style:italic;color:var(--text-dim)">0 people</span>
+          </div>
+          <div class="members-list" id="members-list">
+            <div class="loading"><div class="spinner"></div> Loading...</div>
+          </div>
+          <div class="add-member-row">
+            <div class="input-row">
+              <input type="text" id="new-member-input" placeholder="Add a person…" maxlength="24" onkeydown="if(event.key==='Enter')addMember()">
+              <button class="btn-primary" onclick="addMember()">+</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:20px;">
+        <div id="person-detail" style="display:none;" class="person-detail"></div>
+
+        <div class="panel">
+          <div class="panel-header">Add Expense</div>
+          <div class="form-grid">
+            <div class="form-row">
+              <div class="field">
+                <div class="form-label">Description</div>
+                <input type="text" id="exp-desc" placeholder="e.g. Pizza, Uber, Groceries" maxlength="60">
+              </div>
+              <div class="field">
+                <div class="form-label">Total Amount ($)</div>
+                <input type="number" id="exp-amount" placeholder="0.00" min="0" step="0.01">
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="field">
+                <div class="form-label">Paid by</div>
+                <select id="exp-payer" onchange="onPayerChange()">
+                  <option value="">— select payer —</option>
+                </select>
+                <div class="payer-mode-row" id="payer-mode-row" style="display:none;">
+                  <button class="payer-mode-btn active" id="btn-mode-shared" onclick="setPayerMode('shared')">Sharing cost</button>
+                  <button class="payer-mode-btn" id="btn-mode-buying" onclick="setPayerMode('buying')">Buying for others</button>
+                </div>
+                <div class="payer-mode-hint" id="payer-mode-hint" style="display:none;"></div>
+              </div>
+              <div class="field">
+                <div class="form-label">Emoji / Category</div>
+                <select id="exp-emoji">
+                  <option value="🍕">🍕 Food</option>
+                  <option value="🚗">🚗 Transport</option>
+                  <option value="🏠">🏠 Housing</option>
+                  <option value="🎉">🎉 Fun</option>
+                  <option value="🛒">🛒 Groceries</option>
+                  <option value="🍺">🍺 Drinks</option>
+                  <option value="🎮">🎮 Games</option>
+                  <option value="✈️">✈️ Travel</option>
+                  <option value="💊">💊 Health</option>
+                  <option value="📦">📦 Other</option>
+                </select>
+              </div>
+            </div>
+            <div class="field">
+              <div class="form-label">Split between</div>
+              <div class="select-all-row">
+                <label class="person-check" id="select-all-check" onclick="toggleAll(this)">
+                  <div class="dot"></div>
+                  Select all
+                </label>
+              </div>
+              <div class="people-grid" id="split-people-grid">
+                <span style="color:var(--text-dim);font-size:13px;">Add members first</span>
+              </div>
+            </div>
+            <div class="field">
+              <div class="form-label">Receipt Photo (optional)</div>
+              <div class="receipt-upload-zone" id="receipt-zone" onclick="document.getElementById('receipt-file').click()">
+                <div style="font-size:20px;margin-bottom:4px;">📸</div>
+                <div>Tap to attach receipt</div>
+                <input type="file" id="receipt-file" accept="image/*" style="display:none" onchange="handleReceiptUpload(event)">
+              </div>
+              <div class="receipt-preview" id="receipt-preview">
+                <img id="receipt-preview-img" src="" alt="Receipt preview">
+                <button class="receipt-preview-remove" onclick="removeReceipt()">✕ Remove</button>
+              </div>
+            </div>
+            <button class="btn-primary" style="width:100%;padding:12px;" onclick="addExpense()">Add Expense</button>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <span>All Expenses</span>
+            <span id="expense-total-label" style="font-size:11px;font-family:'Lora',serif;font-style:italic;color:var(--text-dim)"></span>
+          </div>
+          <div id="expense-list">
+            <div class="empty">
+              <div class="empty-icon">💸</div>
+              <div class="empty-text">No expenses yet.<br>Add your first one above.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="tab-settled" class="tab-content">
+    <div class="main full">
+      <div class="panel">
+        <div class="panel-header">
+          <span>Settled Debts</span>
+          <span id="settled-count" style="font-size:11px;font-family:'Lora',serif;font-style:italic;color:var(--text-dim)"></span>
+        </div>
+        <div id="settled-list">
+          <div class="empty">
+            <div class="empty-icon">✅</div>
+            <div class="empty-text">No settled debts yet.<br>Mark a debt as paid from the Expenses tab.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ CREATE GROUP MODAL ═══════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="modal-create-group">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Create a New Group</div>
+      <button class="modal-close" onclick="closeModal('modal-create-group')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="field">
+        <div class="form-label">Group Name</div>
+        <input type="text" id="new-group-name" placeholder="e.g. Road Trip, Roommates, Cabo 2025" maxlength="40" onkeydown="if(event.key==='Enter')createGroup()">
+      </div>
+      <div class="field">
+        <div class="form-label">Emoji</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;" id="emoji-picker">
+          <span class="group-emoji-opt" style="font-size:22px;cursor:pointer;padding:4px 8px;border-radius:6px;border:1px solid var(--border);transition:all 0.1s;" onclick="selectGroupEmoji(this,'🏠')">🏠</span>
+          <span class="group-emoji-opt" style="font-size:22px;cursor:pointer;padding:4px 8px;border-radius:6px;border:1px solid var(--border);transition:all 0.1s;" onclick="selectGroupEmoji(this,'✈️')">✈️</span>
+          <span class="group-emoji-opt" style="font-size:22px;cursor:pointer;padding:4px 8px;border-radius:6px;border:1px solid var(--border);transition:all 0.1s;" onclick="selectGroupEmoji(this,'🎉')">🎉</span>
+          <span class="group-emoji-opt" style="font-size:22px;cursor:pointer;padding:4px 8px;border-radius:6px;border:1px solid var(--border);transition:all 0.1s;" onclick="selectGroupEmoji(this,'🍕')">🍕</span>
+          <span class="group-emoji-opt" style="font-size:22px;cursor:pointer;padding:4px 8px;border-radius:6px;border:1px solid var(--border);transition:all 0.1s;" onclick="selectGroupEmoji(this,'🚗')">🚗</span>
+          <span class="group-emoji-opt" style="font-size:22px;cursor:pointer;padding:4px 8px;border-radius:6px;border:1px solid var(--border);transition:all 0.1s;" onclick="selectGroupEmoji(this,'💼')">💼</span>
+          <span class="group-emoji-opt" style="font-size:22px;cursor:pointer;padding:4px 8px;border-radius:6px;border:1px solid var(--border);transition:all 0.1s;" onclick="selectGroupEmoji(this,'🏕️')">🏕️</span>
+          <span class="group-emoji-opt" style="font-size:22px;cursor:pointer;padding:4px 8px;border-radius:6px;border:1px solid var(--border);transition:all 0.1s;" onclick="selectGroupEmoji(this,'🎓')">🎓</span>
+        </div>
+      </div>
+      <div class="field">
+        <div class="form-label">Color</div>
+        <div class="color-swatches" id="color-swatches">
+          <div class="color-swatch selected" style="background:#a8a8b8;" data-color="#a8a8b8" onclick="selectGroupColor(this)"></div>
+          <div class="color-swatch" style="background:#7aab8f;" data-color="#7aab8f" onclick="selectGroupColor(this)"></div>
+          <div class="color-swatch" style="background:#7a9ab8;" data-color="#7a9ab8" onclick="selectGroupColor(this)"></div>
+          <div class="color-swatch" style="background:#a889b8;" data-color="#a889b8" onclick="selectGroupColor(this)"></div>
+          <div class="color-swatch" style="background:#b88a8a;" data-color="#b88a8a" onclick="selectGroupColor(this)"></div>
+          <div class="color-swatch" style="background:#b89a7a;" data-color="#b89a7a" onclick="selectGroupColor(this)"></div>
+          <div class="color-swatch" style="background:#7abfbf;" data-color="#7abfbf" onclick="selectGroupColor(this)"></div>
+          <div class="color-swatch" style="background:#9ab88c;" data-color="#9ab88c" onclick="selectGroupColor(this)"></div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-ghost" onclick="closeModal('modal-create-group')">Cancel</button>
+      <button class="btn-accent" onclick="createGroup()">Create Group</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ RECEIPT LIGHTBOX ═══════════════════════════════════════════════════ -->
+<div class="lightbox" id="lightbox" onclick="closeLightbox()">
+  <button class="lightbox-close" onclick="closeLightbox()">✕ Close</button>
+  <img id="lightbox-img" src="" alt="Receipt">
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ─── Storage (localStorage for standalone, window.storage API if available) ──
+const STORAGE_KEY = 'split_groups_v1';
+const SUPABASE_URL = 'https://ulsmrzcmxdmaackilhqq.supabase.co/rest/v1/';
+const SUPABASE_KEY = 'sb_publishable_wg3ya6utxjv97d4mLVU3SA_8Q0MJi7e';
+
+async function saveData(data) {
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/split_app`, {
+      method: 'POST',
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${SUPABASE_KEY}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'resolution=merge-duplicates'
+      },
+      body: JSON.stringify({
+        id: STORAGE_KEY,
+        data: data,
+        updated_at: new Date().toISOString()
+      })
+    });
+    if (!res.ok) throw new Error('Supabase save failed');
+  } catch (e) {
+    console.error('Save error:', e);
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch (_) {}
+  }
+}
+
+async function loadData() {
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/split_app?id=eq.${STORAGE_KEY}&select=data`,
+      {
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Authorization': `Bearer ${SUPABASE_KEY}`
+        }
+      }
+    );
+    const rows = await res.json();
+    if (rows && rows.length > 0) return rows[0].data;
+  } catch (e) {
+    console.error('Load error:', e);
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) return JSON.parse(raw);
+    } catch (_) {}
+  }
+  return { groups: [] };
+}
+// ─── State ────────────────────────────────────────────────────────────────────
+let appState = { groups: [] };
+let currentGroupId = null;
+let selectedMember = null;
+let payerMode = 'shared';
+let pendingReceiptDataUrl = null;
+let newGroupEmoji = '🏠';
+let newGroupColor = '#a8a8b8';
+let currentUser = null;       // the name the current browser user has picked
+let pendingIdentityName = null; // staging area while on identity screen
+
+// ─── Identity helpers ─────────────────────────────────────────────────────────
+
+// Collect every unique member name across all groups
+function allKnownNames() {
+  const set = new Set();
+  for (const g of appState.groups) {
+    for (const m of g.members) set.add(m);
+  }
+  // Also include currentUser even if not in any group yet
+  if (currentUser) set.add(currentUser);
+  return [...set].sort((a, b) => a.localeCompare(b));
+}
+
+function updateHeaderUserPill() {
+  const pill   = document.getElementById('header-user-pill');
+  const avatar = document.getElementById('header-user-avatar');
+  const name   = document.getElementById('header-user-name');
+  if (!currentUser) { pill.style.display = 'none'; return; }
+  pill.style.display = 'flex';
+  avatar.textContent = initials(currentUser);
+  avatar.style.background = memberColor(currentUser);
+  name.textContent = currentUser;
+}
+
+// ─── Identity screen ──────────────────────────────────────────────────────────
+function showIdentityScreen() {
+  document.getElementById('view-identity').classList.remove('hidden');
+  document.getElementById('view-groups').classList.remove('active');
+  renderIdentityPeople();
+  document.getElementById('identity-new-name').value = '';
+  pendingIdentityName = currentUser || null;
+}
+
+function renderIdentityPeople() {
+  const list  = document.getElementById('identity-people-list');
+  const names = allKnownNames();
+  if (!names.length) {
+    list.innerHTML = `<div class="identity-empty">No one in any group yet.<br>Enter your name below to get started.</div>`;
+    return;
+  }
+  list.innerHTML = names.map(n => `
+    <div class="identity-person-row ${pendingIdentityName===n?'selected':''}" onclick="selectIdentityPerson('${escQ(n)}')">
+      <div class="avatar" style="background:${memberColor(n)}">${initials(n)}</div>
+      <div class="identity-person-name">${esc(n)}</div>
+      <div class="identity-person-check">✓</div>
+    </div>`).join('');
+}
+
+function selectIdentityPerson(name) {
+  pendingIdentityName = name;
+  renderIdentityPeople();
+}
+
+function confirmIdentityNewName() {
+  const input = document.getElementById('identity-new-name');
+  const name = input.value.trim();
+  if (!name) return;
+  pendingIdentityName = name;
+  input.value = '';
+  // Render with this new name highlighted (it may not be in any group yet)
+  renderIdentityPeople();
+  // If name not in list, add it temporarily highlighted
+  const existing = allKnownNames();
+  if (!existing.includes(name)) {
+    const list = document.getElementById('identity-people-list');
+    const newRow = document.createElement('div');
+    newRow.className = 'identity-person-row selected';
+    newRow.innerHTML = `
+      <div class="avatar" style="background:${memberColor(name)}">${initials(name)}</div>
+      <div class="identity-person-name">${esc(name)}</div>
+      <div class="identity-person-check">✓</div>`;
+    newRow.onclick = () => selectIdentityPerson(name);
+    list.appendChild(newRow);
+    // Remove empty state if present
+    list.querySelector('.identity-empty')?.remove();
+  }
+}
+
+function confirmIdentity() {
+  if (!pendingIdentityName) { toast('Pick or enter your name first', 'error'); return; }
+  currentUser = pendingIdentityName;
+  appState.currentUser = currentUser;
+  saveData(appState);
+  document.getElementById('view-identity').classList.add('hidden');
+  document.getElementById('view-groups').classList.add('active');
+  updateHeaderUserPill();
+  renderGroupsView();
+}
+
+// ─── Switch user modal ────────────────────────────────────────────────────────
+let pendingSwitchUser = null;
+
+function openSwitchUserModal() {
+  pendingSwitchUser = currentUser;
+  const grid = document.getElementById('switch-user-grid');
+  const names = allKnownNames();
+  document.getElementById('switch-user-new-name').value = '';
+  if (!names.length) {
+    grid.innerHTML = `<div style="font-size:13px;color:var(--text-dim);padding:8px 0;">No names yet — add one below.</div>`;
+  } else {
+    grid.innerHTML = names.map(n => `
+      <div class="switch-user-row ${n===pendingSwitchUser?'active-user':''}" onclick="selectSwitchUser('${escQ(n)}')">
+        <div class="avatar" style="background:${memberColor(n)};width:28px;height:28px;font-size:11px;">${initials(n)}</div>
+        <div class="switch-user-name">${esc(n)}</div>
+        ${n===currentUser?`<div class="switch-user-tag">current</div>`:''}
+        <div class="switch-user-check">✓</div>
+      </div>`).join('');
+  }
+  document.getElementById('modal-switch-user').classList.add('open');
+}
+
+function selectSwitchUser(name) {
+  pendingSwitchUser = name;
+  document.querySelectorAll('.switch-user-row').forEach(row => {
+    row.classList.toggle('active-user', row.querySelector('.switch-user-name')?.textContent === name);
+  });
+  document.querySelectorAll('.switch-user-check').forEach(el => el.style.opacity = '0');
+  document.querySelectorAll('.switch-user-row.active-user .switch-user-check').forEach(el => el.style.opacity = '1');
+}
+
+function switchUserAddNew() {
+  const input = document.getElementById('switch-user-new-name');
+  const name = input.value.trim();
+  if (!name) return;
+  input.value = '';
+  pendingSwitchUser = name;
+  // Re-render grid with new name appended
+  const names = allKnownNames();
+  if (!names.includes(name)) names.push(name);
+  const grid = document.getElementById('switch-user-grid');
+  grid.innerHTML = names.map(n => `
+    <div class="switch-user-row ${n===pendingSwitchUser?'active-user':''}" onclick="selectSwitchUser('${escQ(n)}')">
+      <div class="avatar" style="background:${memberColor(n)};width:28px;height:28px;font-size:11px;">${initials(n)}</div>
+      <div class="switch-user-name">${esc(n)}</div>
+      ${n===currentUser?`<div class="switch-user-tag">current</div>`:''}
+      <div class="switch-user-check" style="opacity:${n===pendingSwitchUser?'1':'0'}">✓</div>
+    </div>`).join('');
+}
+
+function confirmSwitchUser() {
+  if (!pendingSwitchUser) { toast('Select a user first', 'error'); return; }
+  currentUser = pendingSwitchUser;
+  appState.currentUser = currentUser;
+  saveData(appState);
+  closeModal('modal-switch-user');
+  updateHeaderUserPill();
+  // If inside a group, re-render to update payer default
+  if (currentGroupId) {
+    autoSelectCurrentUserAsPayer();
+    render();
+  }
+  toast(`Switched to ${currentUser}`, 'success');
+}
+
+// Auto-set payer dropdown to currentUser when they're a member of the current group
+function autoSelectCurrentUserAsPayer() {
+  const g = currentGroup();
+  if (!g || !currentUser) return;
+  if (g.members.includes(currentUser)) {
+    const sel = document.getElementById('exp-payer');
+    sel.value = currentUser;
+    payerMode = 'shared';
+    document.getElementById('btn-mode-shared').classList.add('active');
+    document.getElementById('btn-mode-buying').classList.remove('active');
+    onPayerChange();
+  }
+}
+
+const COLORS = ['#8c9ab8','#7aab8f','#8a9fcc','#a889b8','#b88a8a','#7abfbf','#b89a7a','#9ab88c','#b88c9a','#8c9ab8'];
+function memberColor(name) {
+  let h = 0;
+  for (const c of name) h = (h * 31 + c.charCodeAt(0)) % COLORS.length;
+  return COLORS[h];
+}
+function initials(name) { return name.split(' ').map(w => w[0]).join('').slice(0,2).toUpperCase(); }
+function uid() { return Math.random().toString(36).slice(2) + Date.now().toString(36); }
+
+// ─── Group helpers ─────────────────────────────────────────────────────────
+function currentGroup() {
+  return appState.groups.find(g => g.id === currentGroupId) || null;
+}
+
+// ─── Balance calculations ─────────────────────────────────────────────────────
+function calcBalances(group) {
+  const net = {};
+  for (const m of group.members) net[m] = 0;
+  for (const exp of group.expenses) {
+    const share = exp.amount / exp.split.length;
+    net[exp.payer] = (net[exp.payer] || 0) + exp.amount;
+    for (const p of exp.split) {
+      net[p] = (net[p] || 0) - share;
+    }
+  }
+  for (const pmt of (group.payments || [])) {
+    net[pmt.from] = (net[pmt.from] || 0) + pmt.amount;
+    net[pmt.to]   = (net[pmt.to]   || 0) - pmt.amount;
+  }
+  return net;
+}
+
+function calcDebts(group) {
+  const net = calcBalances(group);
+  const pos = [], neg = [];
+  for (const [p, v] of Object.entries(net)) {
+    if (v > 0.005)       pos.push({ name: p, val: v });
+    else if (v < -0.005) neg.push({ name: p, val: -v });
+  }
+  const debts = [];
+  const p2 = pos.map(x => ({ ...x }));
+  const n2 = neg.map(x => ({ ...x }));
+  let i = 0, j = 0;
+  while (i < p2.length && j < n2.length) {
+    const amt = Math.min(p2[i].val, n2[j].val);
+    if (amt > 0.005) debts.push({ from: n2[j].name, to: p2[i].name, amount: amt });
+    p2[i].val -= amt; n2[j].val -= amt;
+    if (p2[i].val < 0.005) i++;
+    if (n2[j].val < 0.005) j++;
+  }
+  return debts;
+}
+
+// ─── Groups view ──────────────────────────────────────────────────────────────
+function renderGroupsView() {
+  const grid = document.getElementById('groups-grid');
+  const groups = appState.groups;
+
+  // Update page title greeting
+  const titleEl = document.querySelector('.groups-page-title');
+  const subEl   = document.querySelector('.groups-page-title + div');
+  if (titleEl) titleEl.textContent = currentUser ? `Hey, ${currentUser.split(' ')[0]} 👋` : 'Your Groups';
+  if (subEl)   subEl.textContent   = 'Select a group to track expenses';
+
+  let html = '';
+  for (const g of groups) {
+    const net = calcBalances(g);
+    const totalSpent = g.expenses.reduce((s,e) => s + e.amount, 0);
+    const memberCount = g.members.length;
+    const expCount = g.expenses.length;
+    html += `
+      <div class="group-card" style="--card-color:${g.color || 'var(--accent)'}" onclick="openGroup('${g.id}')">
+        <button class="group-card-delete" onclick="event.stopPropagation();deleteGroup('${g.id}')">✕</button>
+        <div class="group-card-emoji">${g.emoji || '📦'}</div>
+        <div class="group-card-name">${esc(g.name)}</div>
+        <div class="group-card-meta">${memberCount} member${memberCount!==1?'s':''}</div>
+        <div class="group-card-stats">
+          <div class="group-stat">
+            <div class="group-stat-val">$${totalSpent.toFixed(2)}</div>
+            <div class="group-stat-lbl">Total Spent</div>
+          </div>
+          <div class="group-stat">
+            <div class="group-stat-val">${expCount}</div>
+            <div class="group-stat-lbl">Expense${expCount!==1?'s':''}</div>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  html += `
+    <div class="new-group-card" onclick="openCreateGroupModal()">
+      <div class="new-group-card-icon">＋</div>
+      <div>New Group</div>
+    </div>`;
+
+  grid.innerHTML = html;
+}
+
+function openGroup(id) {
+  currentGroupId = id;
+  selectedMember = null;
+  payerMode = 'shared';
+  const g = currentGroup();
+  if (!g) return;
+
+  // Update header
+  document.getElementById('header-group-name').textContent = g.name;
+  document.getElementById('header-group-dot').style.background = g.color || 'var(--accent)';
+  document.getElementById('header-group-indicator').style.display = 'flex';
+
+  document.getElementById('view-groups').classList.remove('active');
+  document.getElementById('view-main').style.display = 'block';
+
+  // Reset form state
+  pendingReceiptDataUrl = null;
+  document.getElementById('receipt-preview').style.display = 'none';
+  document.getElementById('exp-desc').value = '';
+  document.getElementById('exp-amount').value = '';
+  document.getElementById('exp-payer').value = '';
+  document.getElementById('payer-mode-row').style.display = 'none';
+  document.getElementById('payer-mode-hint').style.display = 'none';
+  payerMode = 'shared';
+  document.getElementById('btn-mode-shared').classList.add('active');
+  document.getElementById('btn-mode-buying').classList.remove('active');
+
+  switchTab('expenses');
+  render();
+  // After render (so select is populated), default payer to current user
+  autoSelectCurrentUserAsPayer();
+}
+
+function goToGroups() {
+  currentGroupId = null;
+  selectedMember = null;
+  document.getElementById('header-group-indicator').style.display = 'none';
+  document.getElementById('view-main').style.display = 'none';
+  document.getElementById('view-groups').classList.add('active');
+  renderGroupsView();
+}
+
+// ─── Create group modal ───────────────────────────────────────────────────────
+function openCreateGroupModal() {
+  newGroupEmoji = '🏠';
+  newGroupColor = '#a8a8b8';
+  document.getElementById('new-group-name').value = '';
+  document.querySelectorAll('.group-emoji-opt').forEach(el => el.style.background = 'transparent');
+  document.querySelector('.group-emoji-opt').style.background = 'var(--accent-bg)';
+  document.querySelectorAll('.color-swatch').forEach(el => el.classList.remove('selected'));
+  document.querySelector('.color-swatch').classList.add('selected');
+  document.getElementById('modal-create-group').classList.add('open');
+  setTimeout(() => document.getElementById('new-group-name').focus(), 50);
+}
+
+function closeModal(id) {
+  document.getElementById(id).classList.remove('open');
+}
+
+function selectGroupEmoji(el, emoji) {
+  newGroupEmoji = emoji;
+  document.querySelectorAll('.group-emoji-opt').forEach(e => e.style.background = 'transparent');
+  el.style.background = 'var(--accent-bg)';
+}
+
+function selectGroupColor(el) {
+  newGroupColor = el.dataset.color;
+  document.querySelectorAll('.color-swatch').forEach(e => e.classList.remove('selected'));
+  el.classList.add('selected');
+}
+
+function createGroup() {
+  const name = document.getElementById('new-group-name').value.trim();
+  if (!name) { toast('Enter a group name', 'error'); return; }
+  const g = {
+    id: uid(),
+    name,
+    emoji: newGroupEmoji,
+    color: newGroupColor,
+    members: [],
+    expenses: [],
+    payments: [],
+    createdAt: new Date().toISOString()
+  };
+  appState.groups.push(g);
+  saveData(appState);
+  closeModal('modal-create-group');
+  toast(`Group "${name}" created!`, 'success');
+  openGroup(g.id);
+}
+
+function deleteGroup(id) {
+  const g = appState.groups.find(g => g.id === id);
+  if (!g) return;
+  if (!confirm(`Delete group "${g.name}" and all its data? This cannot be undone.`)) return;
+  appState.groups = appState.groups.filter(g => g.id !== id);
+  saveData(appState);
+  renderGroupsView();
+  toast('Group deleted', 'success');
+}
+
+// ─── Receipt handling ─────────────────────────────────────────────────────────
+function handleReceiptUpload(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  if (!file.type.startsWith('image/')) { toast('Please select an image file', 'error'); return; }
+  if (file.size > 5 * 1024 * 1024) { toast('Image must be under 5MB', 'error'); return; }
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    pendingReceiptDataUrl = e.target.result;
+    document.getElementById('receipt-preview-img').src = pendingReceiptDataUrl;
+    document.getElementById('receipt-preview').style.display = 'block';
+    document.getElementById('receipt-zone').style.display = 'none';
+    toast('Receipt attached!', 'success');
+  };
+  reader.readAsDataURL(file);
+  // Reset file input so same file can be re-selected
+  event.target.value = '';
+}
+
+function removeReceipt() {
+  pendingReceiptDataUrl = null;
+  document.getElementById('receipt-preview').style.display = 'none';
+  document.getElementById('receipt-zone').style.display = 'block';
+  document.getElementById('receipt-preview-img').src = '';
+}
+
+function openLightbox(src) {
+  document.getElementById('lightbox-img').src = src;
+  document.getElementById('lightbox').classList.add('open');
+}
+
+function closeLightbox() {
+  document.getElementById('lightbox').classList.remove('open');
+}
+
+// ─── Payer mode UI helpers ────────────────────────────────────────────────────
+function onPayerChange() {
+  const payer = document.getElementById('exp-payer').value;
+  const modeRow = document.getElementById('payer-mode-row');
+  const hint    = document.getElementById('payer-mode-hint');
+  if (!payer) {
+    modeRow.style.display = 'none';
+    hint.style.display = 'none';
+    document.querySelectorAll('#split-people-grid .person-check').forEach(chip => {
+      chip.classList.remove('locked-in','locked-out');
+    });
+    return;
+  }
+  modeRow.style.display = 'flex';
+  hint.style.display = 'block';
+  applyPayerMode(payer);
+}
+
+function setPayerMode(mode) {
+  payerMode = mode;
+  document.getElementById('btn-mode-shared').classList.toggle('active', mode === 'shared');
+  document.getElementById('btn-mode-buying').classList.toggle('active', mode === 'buying');
+  const payer = document.getElementById('exp-payer').value;
+  if (payer) applyPayerMode(payer);
+}
+
+function applyPayerMode(payer) {
+  const hint = document.getElementById('payer-mode-hint');
+  document.querySelectorAll('#split-people-grid .person-check').forEach(chip => {
+    const cb = chip.querySelector('input');
+    if (cb.value !== payer) {
+      chip.classList.remove('locked-in','locked-out');
+      return;
+    }
+    if (payerMode === 'shared') {
+      chip.classList.remove('locked-out');
+      chip.classList.add('checked','locked-in');
+      cb.checked = true;
+      hint.textContent = `"Sharing cost" — ${payer} paid and splits the bill equally with everyone selected, including themselves.`;
+    } else {
+      chip.classList.remove('checked','locked-in');
+      chip.classList.add('locked-out');
+      cb.checked = false;
+      hint.textContent = `"Buying for others" — ${payer} paid but owes nothing. The full cost is split only among the people selected below.`;
+    }
+  });
+  updateSelectAll();
+}
+
+// ─── Render ───────────────────────────────────────────────────────────────────
+function render() {
+  const g = currentGroup();
+  if (!g) return;
+  renderMembers(g);
+  renderExpenses(g);
+  renderPersonDetail(g);
+  renderSettled(g);
+  updatePayerSelect(g);
+  updateSplitGrid(g);
+}
+
+function renderMembers(g) {
+  const net   = calcBalances(g);
+  const list  = document.getElementById('members-list');
+  const count = document.getElementById('member-count');
+  count.textContent = `${g.members.length} people`;
+
+  if (!g.members.length) {
+    list.innerHTML = `<div class="empty" style="padding:20px 16px;"><div class="empty-icon">👥</div><div class="empty-text">No members yet</div></div>`;
+    return;
+  }
+  list.innerHTML = g.members.map(m => {
+    const bal = net[m] || 0;
+    const cls = bal > 0.005 ? 'balance-pos' : bal < -0.005 ? 'balance-neg' : 'balance-zero';
+    const str = bal > 0.005 ? `+$${bal.toFixed(2)}` : bal < -0.005 ? `-$${Math.abs(bal).toFixed(2)}` : 'even';
+    return `
+      <div class="member-pill ${selectedMember===m?'selected':''}" onclick="selectMember('${escQ(m)}')">
+        <div class="avatar" style="background:${memberColor(m)}">${initials(m)}</div>
+        <div class="member-name">${esc(m)}</div>
+        <div class="member-balance ${cls}">${str}</div>
+      </div>`;
+  }).join('');
+}
+
+function renderExpenses(g) {
+  const list  = document.getElementById('expense-list');
+  const label = document.getElementById('expense-total-label');
+  if (!g.expenses.length) {
+    list.innerHTML = `<div class="empty"><div class="empty-icon">💸</div><div class="empty-text">No expenses yet.<br>Add your first one above.</div></div>`;
+    label.textContent = '';
+    return;
+  }
+  const total = g.expenses.reduce((s, e) => s + e.amount, 0);
+  label.textContent = `Total: $${total.toFixed(2)}`;
+  list.innerHTML = g.expenses.map((exp, idx) => {
+    const share = (exp.amount / exp.split.length).toFixed(2);
+    const tags  = exp.split.map(p => `<span class="split-tag">${esc(p)}</span>`).join('');
+    const note  = exp.payerInSplit === false
+      ? ` <span style="color:var(--text-dim);font-style:normal;font-family:'Bricolage Grotesque',sans-serif;">· for others</span>`
+      : '';
+    const receiptBtn = exp.receipt
+      ? `<img class="receipt-thumb" src="${esc(exp.receipt)}" alt="Receipt" onclick="openLightbox('${esc(exp.receipt)}')" title="View receipt">`
+      : ``;
+    return `
+      <div class="expense-item">
+        <div class="expense-icon">${exp.emoji}</div>
+        <div class="expense-info">
+          <div class="expense-title">${esc(exp.desc)}</div>
+          <div class="expense-meta">Paid by <strong>${esc(exp.payer)}</strong>${note} · ${exp.date}</div>
+          <div class="expense-splits">${tags}</div>
+        </div>
+        <div class="expense-actions">
+          <div>
+            <div class="expense-amount">$${exp.amount.toFixed(2)}</div>
+            <div class="expense-per">$${share}/person</div>
+          </div>
+          ${receiptBtn}
+          <button class="btn-danger" onclick="removeExpense(${idx})" title="Delete">✕</button>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function renderPersonDetail(g) {
+  const el = document.getElementById('person-detail');
+  if (!selectedMember || !g.members.includes(selectedMember)) {
+    el.style.display = 'none'; selectedMember = null; return;
+  }
+  el.style.display = 'block';
+
+  const debts = calcDebts(g);
+  const net   = calcBalances(g);
+  const bal   = net[selectedMember] || 0;
+  const color = memberColor(selectedMember);
+  const balStr = bal > 0.005
+    ? `+$${bal.toFixed(2)} (people owe them)`
+    : bal < -0.005 ? `-$${Math.abs(bal).toFixed(2)} (they owe others)` : 'All settled up ✓';
+  const balColor = bal > 0.005 ? 'var(--green)' : bal < -0.005 ? 'var(--red)' : 'var(--text-dim)';
+
+  const owes = debts.filter(d => d.from === selectedMember);
+  const owed = debts.filter(d => d.to   === selectedMember);
+
+  function debtRowHtml(d, amtColor) {
+    const id = ('pp_' + d.from + '_' + d.to).replace(/[^a-z0-9]/gi, '_');
+    return `
+      <div class="debt-row">
+        <div class="debt-row-main">
+          <div class="debt-label">
+            ${d.from === selectedMember
+              ? `owes <strong>${esc(d.to)}</strong>`
+              : `<strong>${esc(d.from)}</strong> owes them`}
+          </div>
+          <div class="debt-actions">
+            <div class="debt-amount" style="color:${amtColor}">$${d.amount.toFixed(2)}</div>
+            <button class="btn-pay-open" id="btn-${id}" onclick="togglePayPanel('${id}',${d.amount.toFixed(2)})">Pay →</button>
+          </div>
+        </div>
+        <div class="pay-panel" id="${id}">
+          <div class="pay-panel-label">How much to pay?</div>
+          <div class="pay-options">
+            <button class="pay-option-btn" onclick="setPayOption(this,'${id}','partial',${d.amount.toFixed(2)})">Enter amount</button>
+            <button class="pay-option-btn" onclick="setPayOption(this,'${id}','full',${d.amount.toFixed(2)})">Pay it all — $${d.amount.toFixed(2)}</button>
+          </div>
+          <div class="pay-amount-row" id="pay-input-row-${id}" style="display:none;">
+            <input type="number" id="pay-input-${id}" placeholder="0.00" min="0.01" step="0.01" max="${d.amount.toFixed(2)}">
+            <button class="btn-confirm-pay" onclick="confirmPay('${escQ(d.from)}','${escQ(d.to)}','${id}',${d.amount.toFixed(2)})">Confirm</button>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  let debtHtml = '';
+  if (!owes.length && !owed.length) {
+    debtHtml = `<div class="debt-row"><div class="debt-row-main"><span style="color:var(--text-dim);font-size:13px;">All settled up! 🎉</span></div></div>`;
+  } else {
+    if (owes.length) { debtHtml += `<div class="section-divider">They owe</div>` + owes.map(d => debtRowHtml(d,'var(--red)')).join(''); }
+    if (owed.length) { debtHtml += `<div class="section-divider">Owed to them</div>` + owed.map(d => debtRowHtml(d,'var(--green)')).join(''); }
+  }
+
+  el.innerHTML = `
+    <div class="detail-header">
+      <div class="detail-avatar" style="background:${color}">${initials(selectedMember)}</div>
+      <div>
+        <div class="detail-name">${esc(selectedMember)}</div>
+        <div class="detail-net" style="color:${balColor}">${balStr}</div>
+      </div>
+      <button class="btn-ghost" style="margin-left:auto;" onclick="selectMember(null)">✕ Close</button>
+    </div>
+    ${debtHtml}`;
+}
+
+function renderSettled(g) {
+  const list = document.getElementById('settled-list');
+  const count = document.getElementById('settled-count');
+  const pmts = g.payments || [];
+  count.textContent = `${pmts.length} records`;
+  if (!pmts.length) {
+    list.innerHTML = `<div class="empty"><div class="empty-icon">✅</div><div class="empty-text">No settled debts yet.<br>Mark a debt as paid from the Expenses tab.</div></div>`;
+    return;
+  }
+  list.innerHTML = [...pmts].reverse().map(s => `
+    <div class="settled-item">
+      <div style="flex:1;"><span style="font-weight:700;">${esc(s.from)}</span><span style="color:var(--text-dim);"> paid </span><span style="font-weight:700;">${esc(s.to)}</span></div>
+      <span style="font-family:'Lora',serif;font-style:italic;font-size:13px;color:var(--text-mid);">$${s.amount.toFixed(2)}</span>
+      <span style="color:var(--text-dim);font-size:11px;font-family:'Lora',serif;font-style:italic;margin-left:12px;">${s.date}</span>
+      <span class="settled-badge" style="margin-left:12px;">PAID</span>
+    </div>`).join('');
+}
+
+function updatePayerSelect(g) {
+  const sel = document.getElementById('exp-payer');
+  const cur = sel.value;
+  sel.innerHTML = `<option value="">— select payer —</option>` +
+    g.members.map(m => `<option value="${escQ(m)}" ${m===cur?'selected':''}>${esc(m)}</option>`).join('');
+}
+
+function updateSplitGrid(g) {
+  const grid = document.getElementById('split-people-grid');
+  if (!g.members.length) {
+    grid.innerHTML = `<span style="color:var(--text-dim);font-size:13px;">Add members first</span>`;
+    return;
+  }
+  grid.innerHTML = g.members.map(m => `
+    <label class="person-check checked" onclick="toggleCheck(this)">
+      <input type="checkbox" value="${escQ(m)}" checked>
+      <div class="dot"></div>
+      ${esc(m)}
+    </label>`).join('');
+  updateSelectAll();
+  const payer = document.getElementById('exp-payer').value;
+  if (payer) applyPayerMode(payer);
+}
+
+// ─── Actions ──────────────────────────────────────────────────────────────────
+function addMember() {
+  const g = currentGroup();
+  if (!g) return;
+  const input = document.getElementById('new-member-input');
+  const name = input.value.trim();
+  if (!name) return;
+  if (g.members.includes(name)) { toast('Name already exists', 'error'); return; }
+  g.members.push(name);
+  input.value = '';
+  saveData(appState);
+  render();
+  toast(`${name} added!`, 'success');
+}
+
+function selectMember(name) {
+  selectedMember = (name === selectedMember) ? null : name;
+  const g = currentGroup();
+  renderMembers(g);
+  renderPersonDetail(g);
+}
+
+function addExpense() {
+  const g = currentGroup();
+  if (!g) return;
+  const desc   = document.getElementById('exp-desc').value.trim();
+  const amount = parseFloat(document.getElementById('exp-amount').value);
+  const payer  = document.getElementById('exp-payer').value;
+  const emoji  = document.getElementById('exp-emoji').value;
+  const checked = [...document.querySelectorAll('#split-people-grid input:checked')].map(cb => cb.value);
+
+  if (!desc)                { toast('Enter a description', 'error'); return; }
+  if (!amount || amount<=0) { toast('Enter a valid amount', 'error'); return; }
+  if (!payer)               { toast('Select who paid', 'error'); return; }
+  if (!checked.length)      { toast('Select at least one person to split with', 'error'); return; }
+
+  if (payerMode === 'shared' && !checked.includes(payer)) {
+    toast('Payer must be included when sharing cost', 'error'); return;
+  }
+  if (payerMode === 'buying' && checked.includes(payer)) {
+    toast('Payer must not be in split when buying for others', 'error'); return;
+  }
+
+  const today = new Date().toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' });
+  g.expenses.push({
+    id: uid(),
+    desc, amount, payer, emoji,
+    split: checked,
+    date: today,
+    payerInSplit: payerMode === 'shared',
+    receipt: pendingReceiptDataUrl || null
+  });
+
+  document.getElementById('exp-desc').value = '';
+  document.getElementById('exp-amount').value = '';
+  removeReceipt();
+  saveData(appState);
+  render();
+  toast('Expense added!', 'success');
+}
+
+function removeExpense(idx) {
+  const g = currentGroup();
+  if (!g) return;
+  if (!confirm('Delete this expense?')) return;
+  g.expenses.splice(idx, 1);
+  saveData(appState);
+  render();
+  toast('Expense removed', 'success');
+}
+
+function recordPayment(from, to, amount) {
+  const g = currentGroup();
+  if (!g) return;
+  if (!g.payments) g.payments = [];
+  const today = new Date().toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' });
+  g.payments.push({ from, to, amount: parseFloat(amount), date: today });
+  saveData(appState);
+  render();
+  toast(`Marked $${parseFloat(amount).toFixed(2)} as paid!`, 'success');
+}
+
+function togglePayPanel(id, totalAmt) {
+  const panel = document.getElementById(id);
+  const btn   = document.getElementById('btn-' + id);
+  const isOpen = panel.classList.contains('open');
+  document.querySelectorAll('.pay-panel.open').forEach(p => {
+    p.classList.remove('open');
+    const b = document.getElementById('btn-' + p.id);
+    if (b) b.classList.remove('open');
+  });
+  if (!isOpen) {
+    panel.classList.add('open');
+    btn.classList.add('open');
+    panel.querySelectorAll('.pay-option-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('pay-input-row-' + id).style.display = 'none';
+    const inp = document.getElementById('pay-input-' + id);
+    if (inp) inp.value = '';
+  }
+}
+
+function setPayOption(btnEl, id, mode, totalAmt) {
+  const panel    = document.getElementById(id);
+  const inputRow = document.getElementById('pay-input-row-' + id);
+  const inp      = document.getElementById('pay-input-' + id);
+  panel.querySelectorAll('.pay-option-btn').forEach(b => b.classList.remove('active'));
+  btnEl.classList.add('active');
+  inputRow.style.display = 'flex';
+  if (mode === 'full') {
+    inp.value = totalAmt.toFixed(2);
+    inp.readOnly = true;
+  } else {
+    inp.readOnly = false;
+    inp.value = '';
+    inp.focus();
+  }
+}
+
+function confirmPay(from, to, id, totalAmt) {
+  const inp = document.getElementById('pay-input-' + id);
+  const amount = parseFloat(inp.value);
+  if (!amount || amount <= 0) { toast('Enter a valid amount', 'error'); return; }
+  if (amount > totalAmt + 0.005) { toast(`Can't pay more than owed ($${totalAmt.toFixed(2)})`, 'error'); return; }
+  recordPayment(from, to, amount);
+}
+
+function toggleCheck(el) {
+  if (el.classList.contains('locked-in') || el.classList.contains('locked-out')) return;
+  setTimeout(() => {
+    const cb = el.querySelector('input');
+    el.classList.toggle('checked', cb.checked);
+    updateSelectAll();
+  }, 0);
+}
+
+function toggleAll(el) {
+  const checked = !el.classList.contains('checked');
+  el.classList.toggle('checked', checked);
+  document.querySelectorAll('#split-people-grid .person-check').forEach(pc => {
+    if (pc.classList.contains('locked-in') || pc.classList.contains('locked-out')) return;
+    pc.classList.toggle('checked', checked);
+    pc.querySelector('input').checked = checked;
+  });
+  updateSelectAll();
+}
+
+function updateSelectAll() {
+  const all = [...document.querySelectorAll('#split-people-grid .person-check')]
+    .filter(c => !c.classList.contains('locked-in') && !c.classList.contains('locked-out'));
+  const allChecked = all.length > 0 && all.every(c => c.querySelector('input').checked);
+  document.getElementById('select-all-check').classList.toggle('checked', allChecked);
+}
+
+function switchTab(tab) {
+  document.querySelectorAll('.nav-tab').forEach((t, i) => t.classList.toggle('active', ['expenses','settled'][i] === tab));
+  document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+  document.getElementById(`tab-${tab}`).classList.add('active');
+}
+
+function esc(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function escQ(str) { return String(str).replace(/'/g,"\\'"); }
+
+function toast(msg, type='success') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = `toast ${type} show`;
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.classList.remove('show'), 2500);
+}
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+(async () => {
+  appState = await loadData();
+  if (!appState.groups) appState.groups = [];
+
+  // Migration: if old v1 data found (members/expenses at root), wrap it in a group
+  if (appState.members) {
+    const legacyGroup = {
+      id: uid(),
+      name: 'My Group',
+      emoji: '📦',
+      color: '#a8a8b8',
+      members: appState.members || [],
+      expenses: appState.expenses || [],
+      payments: appState.payments || [],
+      createdAt: new Date().toISOString()
+    };
+    appState.groups.unshift(legacyGroup);
+    delete appState.members;
+    delete appState.expenses;
+    delete appState.payments;
+    delete appState.settled;
+    await saveData(appState);
+  }
+
+  // Restore saved identity
+  if (appState.currentUser) {
+    currentUser = appState.currentUser;
+    updateHeaderUserPill();
+    document.getElementById('view-identity').classList.add('hidden');
+    document.getElementById('view-groups').classList.add('active');
+    renderGroupsView();
+  } else {
+    // First visit — show identity picker
+    pendingIdentityName = null;
+    renderIdentityPeople();
+  }
+})();
+</script>
+</body>
+</html>
